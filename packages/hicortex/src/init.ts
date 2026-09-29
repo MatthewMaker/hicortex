@@ -21,7 +21,7 @@
  *   - Remove legacy pre-0.10 CC commands (/learn, /hicortex-activate) if present
  */
 
-import { hicortexHome } from "./paths.js";
+import { hicortexHome, claudeConfigDir, claudeGlobalConfigPath } from "./paths.js";
 import { writeLocalhostBypassMarker } from "./localhost-bypass.js";
 import { sendLifecycleEvent } from "./telemetry.js";
 import { existsSync, readFileSync, writeFileSync, mkdirSync, copyFileSync, readdirSync, statSync, symlinkSync, rmSync, renameSync } from "node:fs";
@@ -64,8 +64,8 @@ function readHomeConfig(home: string): Record<string, unknown> | null {
     return null;
   }
 }
-const CC_SETTINGS = join(homedir(), ".claude", "settings.json");
-const CC_COMMANDS_DIR = join(homedir(), ".claude", "commands");
+const CC_SETTINGS = join(claudeConfigDir(), "settings.json");
+const CC_COMMANDS_DIR = join(claudeConfigDir(), "commands");
 const OC_CONFIG = join(homedir(), ".openclaw", "openclaw.json");
 const HERMES_HOME = process.env.HERMES_HOME || join(homedir(), ".hermes");
 /** Pi's agent dir — its presence means Pi is installed and will load extensions. */
@@ -175,7 +175,7 @@ async function detect(): Promise<DetectionResult> {
 
   // Check CC MCP registration (claude mcp add writes to .claude.json, not settings.json)
   for (const configPath of [
-    join(homedir(), ".claude.json"),
+    claudeGlobalConfigPath(),
     CC_SETTINGS,
   ]) {
     try {
@@ -219,9 +219,9 @@ function registerCcMcp(serverUrl: string): void {
   } catch (err) {
     // Fallback: write directly to ~/.claude.json (where CC reads MCP servers)
     const msg = err instanceof Error ? err.message : String(err);
-    console.log(`  ⚠ claude CLI registration failed (${msg}), writing ~/.claude.json directly`);
+    console.log(`  ⚠ claude CLI registration failed (${msg}), writing ${claudeGlobalConfigPath()} directly`);
 
-    const claudeJsonPath = join(homedir(), ".claude.json");
+    const claudeJsonPath = claudeGlobalConfigPath();
     let config: Record<string, unknown> = {};
     if (existsSync(claudeJsonPath)) {
       try {
@@ -1567,6 +1567,23 @@ function resolveBinaryArgs(): string[] {
 }
 
 /**
+ * Extra supervisor env for a relocated Claude Code config dir. launchd and
+ * systemd don't inherit the shell's CLAUDE_CONFIG_DIR, so without this the
+ * daemon and capture jobs would fall back to ~/.claude (settings, projects/
+ * transcripts) even though init honored the override. Empty when unset.
+ */
+export function claudeConfigDirPlistEnv(): string {
+  const dir = process.env.CLAUDE_CONFIG_DIR;
+  return dir ? `\n    <key>CLAUDE_CONFIG_DIR</key>\n    <string>${dir}</string>` : "";
+}
+
+/** systemd counterpart of claudeConfigDirPlistEnv (quoted for paths with spaces). */
+export function claudeConfigDirSystemdEnv(): string {
+  const dir = process.env.CLAUDE_CONFIG_DIR;
+  return dir ? `\nEnvironment="CLAUDE_CONFIG_DIR=${dir}"` : "";
+}
+
+/**
  * Build the PATH the launchd/systemd supervisors receive (#276). Order:
  *   1. the binary's own dir — so a SIBLING node wins for nvm/volta/npm-global
  *      installs (the version the global was installed under);
@@ -1791,7 +1808,7 @@ ${programArgs}
   <key>EnvironmentVariables</key>
   <dict>
     <key>PATH</key>
-    <string>${supervisorPath}</string>
+    <string>${supervisorPath}</string>${claudeConfigDirPlistEnv()}
   </dict>
 </dict>
 </plist>`;
@@ -1830,7 +1847,7 @@ Restart=on-failure
 RestartSec=10
 StandardOutput=journal
 StandardError=journal
-Environment=PATH=${supervisorPath}
+Environment=PATH=${supervisorPath}${claudeConfigDirSystemdEnv()}
 
 [Install]
 WantedBy=default.target
@@ -2088,7 +2105,7 @@ export async function runInit(
 
   // Strip the old static lessons block from CLAUDE.md (0.9.0 migration).
   // Lessons are now delivered via the SessionStart hook instead.
-  const claudeMdPath = join(homedir(), ".claude", "CLAUDE.md");
+  const claudeMdPath = join(claudeConfigDir(), "CLAUDE.md");
   if (removeLessonsBlock(claudeMdPath)) {
     console.log(`  ✓ Removed old static lessons block from ${claudeMdPath} — lessons now injected at session start`);
   }
@@ -2223,7 +2240,7 @@ async function runClientInit(serverUrl: string, agentName?: string): Promise<voi
   // Step 4: Register CC MCP pointing to remote server
   if (authToken) {
     // Write directly with auth header
-    const claudeJsonPath = join(homedir(), ".claude.json");
+    const claudeJsonPath = claudeGlobalConfigPath();
     let claudeConfig: Record<string, unknown> = {};
     let claudeJsonOk = true;
     if (existsSync(claudeJsonPath)) {
@@ -2258,7 +2275,7 @@ async function runClientInit(serverUrl: string, agentName?: string): Promise<voi
   installRecallHooks();
 
   // Strip the old static CLAUDE.md lessons block if present (0.9.0 migration).
-  const claudeMdPath = join(homedir(), ".claude", "CLAUDE.md");
+  const claudeMdPath = join(claudeConfigDir(), "CLAUDE.md");
   if (removeLessonsBlock(claudeMdPath)) {
     console.log(`  ✓ Removed old static lessons block from CLAUDE.md — lessons now injected at session start`);
   }
@@ -2615,7 +2632,7 @@ ${scheduleBlock}
   <key>EnvironmentVariables</key>
   <dict>
     <key>PATH</key>
-    <string>${supervisorPath}</string>
+    <string>${supervisorPath}</string>${claudeConfigDirPlistEnv()}
   </dict>
 </dict>
 </plist>`;
@@ -2646,7 +2663,7 @@ Type=oneshot
 ExecStart=${execStart}
 ${opts.timeoutMin ? `TimeoutStartSec=${opts.timeoutMin}min\n` : ""}StandardOutput=append:${logPath}
 StandardError=append:${logPath}
-Environment=PATH=${supervisorPath}
+Environment=PATH=${supervisorPath}${claudeConfigDirSystemdEnv()}
 Environment=HOME=${homedir()}
 WorkingDirectory=${homedir()}`;
 

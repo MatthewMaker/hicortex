@@ -3,7 +3,7 @@
  * Preserves the database (user data).
  */
 
-import { hicortexHome } from "./paths.js";
+import { hicortexHome, claudeConfigDir } from "./paths.js";
 import { existsSync, readFileSync, writeFileSync, unlinkSync } from "node:fs";
 import { sendLifecycleEvent } from "./telemetry.js";
 import { join } from "node:path";
@@ -13,9 +13,9 @@ import { createInterface } from "node:readline";
 import { removeLessonsBlock } from "./claude-md.js";
 
 const HICORTEX_HOME = hicortexHome();
-const CC_SETTINGS = join(homedir(), ".claude", "settings.json");
-const CC_COMMANDS_DIR = join(homedir(), ".claude", "commands");
-const CLAUDE_MD = join(homedir(), ".claude", "CLAUDE.md");
+const CC_SETTINGS = join(claudeConfigDir(), "settings.json");
+const CC_COMMANDS_DIR = join(claudeConfigDir(), "commands");
+const CLAUDE_MD = join(claudeConfigDir(), "CLAUDE.md");
 
 /**
  * Matches a CC SessionStart hook `command` that runs the Hicortex

@@ -2,7 +2,7 @@
  * Hicortex status — show current configuration and stats.
  */
 
-import { hicortexHome } from "./paths.js";
+import { hicortexHome, claudeConfigDir } from "./paths.js";
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { homedir, platform } from "node:os";
@@ -14,7 +14,7 @@ import { resolveAgentIdentity } from "./identity-store.js";
 import { labelForType } from "./type-labels.js";
 
 const HICORTEX_HOME = hicortexHome();
-const CC_SETTINGS = join(homedir(), ".claude", "settings.json");
+const CC_SETTINGS = join(claudeConfigDir(), "settings.json");
 const OC_CONFIG = join(homedir(), ".openclaw", "openclaw.json");
 
 /**

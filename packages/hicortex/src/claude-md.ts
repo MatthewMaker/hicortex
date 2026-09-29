@@ -13,12 +13,12 @@
 
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { homedir } from "node:os";
+import { claudeConfigDir } from "./paths.js";
 
 const START_MARKER = "<!-- HICORTEX-LEARNINGS:START -->";
 const END_MARKER = "<!-- HICORTEX-LEARNINGS:END -->";
 
-const DEFAULT_CLAUDE_MD = join(homedir(), ".claude", "CLAUDE.md");
+const DEFAULT_CLAUDE_MD = join(claudeConfigDir(), "CLAUDE.md");
 
 /**
  * Remove the Hicortex Learnings block from CLAUDE.md.

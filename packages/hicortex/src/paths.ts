@@ -13,3 +13,21 @@ import { join } from "node:path";
 export function hicortexHome(): string {
   return process.env.HICORTEX_HOME ?? join(homedir(), ".hicortex");
 }
+
+/**
+ * Claude Code config dir. Honors CLAUDE_CONFIG_DIR (Claude Code's own
+ * override for relocating ~/.claude); otherwise defaults to ~/.claude.
+ * settings.json, commands/, CLAUDE.md and projects/ all live under it.
+ */
+export function claudeConfigDir(): string {
+  return process.env.CLAUDE_CONFIG_DIR || join(homedir(), ".claude");
+}
+
+/**
+ * Claude Code's global config file (MCP server registrations). It sits
+ * inside CLAUDE_CONFIG_DIR when that is set, and at ~/.claude.json otherwise.
+ */
+export function claudeGlobalConfigPath(): string {
+  const dir = process.env.CLAUDE_CONFIG_DIR;
+  return dir ? join(dir, ".claude.json") : join(homedir(), ".claude.json");
+}

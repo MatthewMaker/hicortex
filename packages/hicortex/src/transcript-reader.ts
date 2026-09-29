@@ -10,7 +10,7 @@
 
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, basename } from "node:path";
-import { homedir } from "node:os";
+import { claudeConfigDir } from "./paths.js";
 import type { CursorMap } from "./capture-cursors.js";
 
 export type { CursorMap };
@@ -61,7 +61,7 @@ export interface TranscriptBatch {
  */
 export const MIN_TRANSCRIPT_ENTRIES = 4;
 
-const CC_PROJECTS_DIR = join(homedir(), ".claude", "projects");
+const CC_PROJECTS_DIR = join(claudeConfigDir(), "projects");
 
 /**
  * Read all CC transcripts modified since `since`.
